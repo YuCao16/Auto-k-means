@@ -17,7 +17,7 @@ class Kmeanpp():
         self.oldNewArr = np.zeros((2, len(self.dataset)))
         self.oldNewArrSwitch = 0  # control the position of new arrange point will be store in self.oldNewArr
         self.uselsee = 1
-        self.maxK = range(2, max(int(self.numRow / 20) + 1, 4), 1)
+        self.maxK = range(2, max(int(self.numRow / 20) + 1, 4))
 
     def selectCenter(self, c=np.array([1])):
         if len(self.Centers[0]) == 0:
@@ -31,13 +31,11 @@ class Kmeanpp():
                     if a <= c[i]:
                         self.Centers = np.vstack((self.Centers, self.dataset[i]))
                         return self.Centers
+                elif c[i - 1] <= a <= c[i]:
+                    self.Centers = np.vstack((self.Centers, self.dataset[i]))
+                    return self.Centers
                 else:
-
-                    if c[i - 1] <= a <= c[i]:
-                        self.Centers = np.vstack((self.Centers, self.dataset[i]))
-                        return self.Centers
-                    else:
-                        self.useless = c
+                    self.useless = c
 
     def closestDistance(self, Centers, inside=True):  # return a matrix with element of the distance
         a = np.zeros([len(Centers), len(self.dataset)])
@@ -49,13 +47,12 @@ class Kmeanpp():
                     nd = nd + (Centers[i, k] - self.dataset[j, k]) ** self.numCol
                 a[i, j] = np.abs(nd)
 
-        if inside:
-            b = np.zeros(self.numRow)
-            for i in range(self.numRow):
-                b[i] = min(a[:, i])
-            return b
-        else:
+        if not inside:
             return a
+        b = np.zeros(self.numRow)
+        for i in range(self.numRow):
+            b[i] = min(a[:, i])
+        return b
 
     def calP(self, b):  # input a nparray b, b.shape is equal to the original self.dataset
         sumDist = np.sum(b)
@@ -74,10 +71,7 @@ class Kmeanpp():
         return self.Centers
 
     def arrangedPoint(self, existIni=True):
-        if existIni:
-            Centers = self.Centers
-        else:
-            Centers = self.getIniCenters()
+        Centers = self.Centers if existIni else self.getIniCenters()
         a = self.closestDistance(Centers, inside=False)
         b = np.zeros((self.numRow, 1))
         for i in range(self.numRow):
@@ -88,16 +82,12 @@ class Kmeanpp():
                     continue
         b = b.reshape(-1)
         b = b.astype('int')
-        if self.oldNewArrSwitch == 0:
+        if self.oldNewArrSwitch == 0 or self.oldNewArrSwitch != 1:
             self.oldNewArr[0] = b
             self.oldNewArrSwitch = 1
-        elif self.oldNewArrSwitch == 1:
+        else:
             self.oldNewArr[1] = b
             self.oldNewArrSwitch = 2
-        else:
-            self.oldNewArr[0] = b
-            self.oldNewArrSwitch = 1
-
         return b
 
     def improvement(self, ifplot=False):
@@ -140,8 +130,7 @@ class Kmeanpp():
         initialGuess = self.getIniCenters()
         self.arrangedPoint()
         initialArr = self.getLatestArr()
-        kk = 0
-        while kk < 10000:
+        for _ in range(10000):
             finalCenter = self.improvement()
             if self.checkIfCon():
                 self.arrangedPoint()
@@ -150,8 +139,6 @@ class Kmeanpp():
                 if needPlot:
                     self.plot(finalCenter)
                 return finalCenter, Loss
-                break
-            kk = kk + 1
 
     def process(self, needArr=False, needPlot=False):
         storeLoss = np.array([])
@@ -175,14 +162,11 @@ class Kmeanpp():
             self.plot(Centers)
         return Centers, kopt, Loss
 
-        pass
-
     def ifKopt(self, storeLoss):  # check if we got a optimal value-k according to Loss
         if len(storeLoss) < 2:
             return False
-        else:
-            if storeLoss[-1] / storeLoss[-2] > 0.8 and storeLoss[-1]/ storeLoss[0] < 0.5:
-                return True
+        if storeLoss[-1] / storeLoss[-2] > 0.8 and storeLoss[-1]/ storeLoss[0] < 0.5:
+            return True
 
     def plot(self, Centers):
         plotReq = self.improvement(ifplot=True)
@@ -193,7 +177,6 @@ class Kmeanpp():
             plt.scatter(arr[:, 0], arr[:, 1])
             plt.scatter(cen[0], cen[1])
         plt.show()
-        pass
 
 
 dataset = pd.read_csv('Mall_Customers.csv')
